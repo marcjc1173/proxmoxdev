@@ -8,6 +8,7 @@ import {
   fetchTaskStatus,
   fetchOverview,
   getStoredRole,
+  OverviewData,
   ProvisioningTemplate,
   ProvisioningIso
 } from "../api";
@@ -24,6 +25,16 @@ interface DeploymentTrackerStep {
 interface DeploymentTrackerState {
   title: string;
   steps: DeploymentTrackerStep[];
+}
+
+interface NodeCapacitySnapshot {
+  cpuUsedPercent?: number;
+  cpuAvailableCores?: number;
+  cpuTotalCores?: number;
+  memUsedBytes?: number;
+  memTotalBytes?: number;
+  diskUsedBytes?: number;
+  diskTotalBytes?: number;
 }
 
 const DEPLOYMENT_TRACKER_STORAGE_KEY = "pc_deployment_tracker_v1";
@@ -55,11 +66,64 @@ function saveDeploymentTrackerState(input: DeploymentTrackerState): void {
   }
 }
 
+function toFiniteNumber(value: unknown): number | undefined {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return undefined;
+  }
+
+  return numberValue;
+}
+
+function toGiB(valueInBytes: number | undefined): number | undefined {
+  if (valueInBytes == null) {
+    return undefined;
+  }
+
+  return valueInBytes / 1024 ** 3;
+}
+
+function formatGiB(valueInBytes: number | undefined): string {
+  const valueInGiB = toGiB(valueInBytes);
+  if (valueInGiB == null) {
+    return "-";
+  }
+
+  return `${valueInGiB.toFixed(1)} GB`;
+}
+
+function parseRequestedNumber(value: string): number | undefined {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function getSuggestedNextVmid(overview: OverviewData): number | undefined {
+  const vmids = [...overview.qemuVms, ...overview.lxcVms]
+    .map((item) => Number((item as Record<string, unknown>).vmid))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  if (vmids.length === 0) {
+    return undefined;
+  }
+
+  return Math.max(...vmids) + 1;
+}
+
 export function ProvisioningPage() {
   const currentRole = getStoredRole();
   const canOperate = currentRole === "operator" || currentRole === "admin";
 
   const [availableNodes, setAvailableNodes] = useState<string[]>([]);
+  const [nodeCapacityByName, setNodeCapacityByName] = useState<Record<string, NodeCapacitySnapshot>>({});
+  const [suggestedNextVmid, setSuggestedNextVmid] = useState<number | null>(null);
   const [templates, setTemplates] = useState<ProvisioningTemplate[]>([]);
   const [provisionStatus, setProvisionStatus] = useState<string>("-");
   const [provisionTemplateKey, setProvisionTemplateKey] = useState<string>("");
@@ -113,7 +177,42 @@ export function ProvisioningPage() {
       .then((overview) => {
         const nodes = overview.nodes.map((n: any) => String(n.node || "")).filter(Boolean);
         setAvailableNodes(nodes);
-        
+
+        const capacitySnapshots = overview.nodes.reduce<Record<string, NodeCapacitySnapshot>>((acc, node: any) => {
+          const nodeName = String(node.node || "").trim();
+          if (!nodeName) {
+            return acc;
+          }
+
+          const cpuRatio = toFiniteNumber(node.cpu);
+          const maxCpu = toFiniteNumber(node.maxcpu);
+          const memUsed = toFiniteNumber(node.mem);
+          const memTotal = toFiniteNumber(node.maxmem);
+          const diskUsed = toFiniteNumber(node.disk);
+          const diskTotal = toFiniteNumber(node.maxdisk);
+
+          acc[nodeName] = {
+            cpuUsedPercent: cpuRatio != null ? cpuRatio * 100 : undefined,
+            cpuTotalCores: maxCpu,
+            cpuAvailableCores:
+              cpuRatio != null && maxCpu != null ? Math.max(0, maxCpu - cpuRatio * maxCpu) : undefined,
+            memUsedBytes: memUsed,
+            memTotalBytes: memTotal,
+            diskUsedBytes: diskUsed,
+            diskTotalBytes: diskTotal
+          };
+
+          return acc;
+        }, {});
+        setNodeCapacityByName(capacitySnapshots);
+
+        const nextVmid = getSuggestedNextVmid(overview);
+        if (nextVmid != null) {
+          setSuggestedNextVmid(nextVmid);
+          setProvisionNewId((prev) => (prev.trim() ? prev : String(nextVmid)));
+          setIsoNewId((prev) => (prev.trim() ? prev : String(nextVmid)));
+        }
+
         // Auto-populate node fields with the first available node
         if (nodes.length > 0) {
           const firstNode = nodes[0];
@@ -127,6 +226,48 @@ export function ProvisioningPage() {
       })
       .catch(() => setAvailableNodes([]));
   }, []);
+
+  const templateNodeCapacity = nodeCapacityByName[provisionTargetNode];
+  const isoNodeCapacity = nodeCapacityByName[isoNode];
+
+  const templateRequestedCores = parseRequestedNumber(provisionCores);
+  const templateRequestedMemoryMb = parseRequestedNumber(provisionMemory);
+  const templateRequestedMemoryBytes =
+    templateRequestedMemoryMb != null ? templateRequestedMemoryMb * 1024 * 1024 : undefined;
+
+  const templateCpuOverProvisioned =
+    templateRequestedCores != null &&
+    templateNodeCapacity?.cpuAvailableCores != null &&
+    templateRequestedCores > templateNodeCapacity.cpuAvailableCores;
+  const templateMemOverProvisioned =
+    templateRequestedMemoryBytes != null &&
+    templateNodeCapacity?.memTotalBytes != null &&
+    templateNodeCapacity.memUsedBytes != null &&
+    templateRequestedMemoryBytes >
+      Math.max(0, templateNodeCapacity.memTotalBytes - templateNodeCapacity.memUsedBytes);
+
+  const isoRequestedCores = parseRequestedNumber(isoCores);
+  const isoRequestedMemoryMb = parseRequestedNumber(isoMemory);
+  const isoRequestedDiskGb = parseRequestedNumber(isoDiskGb);
+  const isoRequestedMemoryBytes =
+    isoRequestedMemoryMb != null ? isoRequestedMemoryMb * 1024 * 1024 : undefined;
+  const isoRequestedDiskBytes =
+    isoRequestedDiskGb != null ? isoRequestedDiskGb * 1024 ** 3 : undefined;
+
+  const isoCpuOverProvisioned =
+    isoRequestedCores != null &&
+    isoNodeCapacity?.cpuAvailableCores != null &&
+    isoRequestedCores > isoNodeCapacity.cpuAvailableCores;
+  const isoMemOverProvisioned =
+    isoRequestedMemoryBytes != null &&
+    isoNodeCapacity?.memTotalBytes != null &&
+    isoNodeCapacity.memUsedBytes != null &&
+    isoRequestedMemoryBytes > Math.max(0, isoNodeCapacity.memTotalBytes - isoNodeCapacity.memUsedBytes);
+  const isoDiskOverProvisioned =
+    isoRequestedDiskBytes != null &&
+    isoNodeCapacity?.diskTotalBytes != null &&
+    isoNodeCapacity.diskUsedBytes != null &&
+    isoRequestedDiskBytes > Math.max(0, isoNodeCapacity.diskTotalBytes - isoNodeCapacity.diskUsedBytes);
 
   useEffect(() => {
     fetchProvisioningTemplates().then((res) => setTemplates(res.templates)).catch(() => setTemplates([]));
@@ -162,6 +303,10 @@ export function ProvisioningPage() {
       setDeploymentTrackerSteps(
         result.steps.map((s) => ({ ...s, status: "pending" as const, node: result.node }))
       );
+      const nextVmid = result.vmid + 1;
+      setSuggestedNextVmid(nextVmid);
+      setProvisionNewId(String(nextVmid));
+      setIsoNewId(String(nextVmid));
       setProvisionStatus("deployment initiated");
     } catch (err) {
       setProvisionStatus(`deployment failed: ${err instanceof Error ? err.message : "unknown"}`);
@@ -227,6 +372,10 @@ export function ProvisioningPage() {
       setDeploymentTrackerSteps(
         result.steps.map((s) => ({ ...s, status: "pending" as const, node: result.node }))
       );
+      const nextVmid = result.vmid + 1;
+      setSuggestedNextVmid(nextVmid);
+      setProvisionNewId(String(nextVmid));
+      setIsoNewId(String(nextVmid));
       setIsoStatus("deployment initiated");
     } catch (err) {
       setIsoStatus(`deployment failed: ${err instanceof Error ? err.message : "unknown"}`);
@@ -303,6 +452,16 @@ export function ProvisioningPage() {
                 ))}
               </select>
             </label>
+            {templateNodeCapacity ? (
+              <div className="action-status">
+                Node capacity ({provisionTargetNode}): CPU avail {templateNodeCapacity.cpuAvailableCores != null ? `${templateNodeCapacity.cpuAvailableCores.toFixed(1)} / ${templateNodeCapacity.cpuTotalCores?.toFixed(1) ?? "-"} cores` : "-"} ({templateNodeCapacity.cpuUsedPercent != null ? `${templateNodeCapacity.cpuUsedPercent.toFixed(0)}% used` : "-"}), Mem avail {formatGiB(templateNodeCapacity.memTotalBytes != null && templateNodeCapacity.memUsedBytes != null ? Math.max(0, templateNodeCapacity.memTotalBytes - templateNodeCapacity.memUsedBytes) : undefined)} / {formatGiB(templateNodeCapacity.memTotalBytes)}, Disk avail {formatGiB(templateNodeCapacity.diskTotalBytes != null && templateNodeCapacity.diskUsedBytes != null ? Math.max(0, templateNodeCapacity.diskTotalBytes - templateNodeCapacity.diskUsedBytes) : undefined)} / {formatGiB(templateNodeCapacity.diskTotalBytes)}
+              </div>
+            ) : null}
+            {templateCpuOverProvisioned || templateMemOverProvisioned ? (
+              <div className="action-status" style={{ color: "#f87171" }}>
+                Warning: requested template resources exceed currently available node capacity.
+              </div>
+            ) : null}
             <label>
               New VMID
               <input
@@ -311,6 +470,9 @@ export function ProvisioningPage() {
                 placeholder="300"
               />
             </label>
+            {suggestedNextVmid != null ? (
+              <div className="action-status">Suggested next VMID: {suggestedNextVmid}</div>
+            ) : null}
             <label>
               VM Name
               <input
@@ -380,6 +542,16 @@ export function ProvisioningPage() {
                 ))}
               </select>
             </label>
+            {isoNodeCapacity ? (
+              <div className="action-status">
+                Node capacity ({isoNode}): CPU avail {isoNodeCapacity.cpuAvailableCores != null ? `${isoNodeCapacity.cpuAvailableCores.toFixed(1)} / ${isoNodeCapacity.cpuTotalCores?.toFixed(1) ?? "-"} cores` : "-"} ({isoNodeCapacity.cpuUsedPercent != null ? `${isoNodeCapacity.cpuUsedPercent.toFixed(0)}% used` : "-"}), Mem avail {formatGiB(isoNodeCapacity.memTotalBytes != null && isoNodeCapacity.memUsedBytes != null ? Math.max(0, isoNodeCapacity.memTotalBytes - isoNodeCapacity.memUsedBytes) : undefined)} / {formatGiB(isoNodeCapacity.memTotalBytes)}, Disk avail {formatGiB(isoNodeCapacity.diskTotalBytes != null && isoNodeCapacity.diskUsedBytes != null ? Math.max(0, isoNodeCapacity.diskTotalBytes - isoNodeCapacity.diskUsedBytes) : undefined)} / {formatGiB(isoNodeCapacity.diskTotalBytes)}
+              </div>
+            ) : null}
+            {isoCpuOverProvisioned || isoMemOverProvisioned || isoDiskOverProvisioned ? (
+              <div className="action-status" style={{ color: "#f87171" }}>
+                Warning: requested ISO resources exceed currently available node capacity.
+              </div>
+            ) : null}
             <label>
               Upload Storage
               <input value={isoUploadStorage} onChange={(event) => setIsoUploadStorage(event.target.value)} placeholder="local" />
@@ -422,6 +594,9 @@ export function ProvisioningPage() {
               New VMID
               <input value={isoNewId} onChange={(event) => setIsoNewId(event.target.value)} placeholder="400" />
             </label>
+            {suggestedNextVmid != null ? (
+              <div className="action-status">Suggested next VMID: {suggestedNextVmid}</div>
+            ) : null}
             <label>
               VM Name
               <input value={isoName} onChange={(event) => setIsoName(event.target.value)} placeholder="ubuntu-install-01" />
