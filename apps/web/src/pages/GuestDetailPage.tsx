@@ -482,47 +482,39 @@ export function GuestDetailPage() {
         <h2>Snapshot Management</h2>
         
         {canOperate && (
-          <div style={{ marginBottom: "2rem", padding: "1.5rem", background: "#f8f9fa", borderRadius: "8px", color: "#000" }}>
-            <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "#000" }}>Create New Snapshot</h3>
-            <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "1fr 1fr" }}>
-              <div>
-                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500", color: "#000" }}>
-                  Snapshot Name <span style={{ color: "red" }}>*</span>
-                </label>
+          <div style={{ marginBottom: "2rem" }}>
+            <div className="snapshot-form">
+              <h3>Create New Snapshot</h3>
+              <label>
+                <span>
+                  Snapshot Name <span style={{ color: "#f87171" }}>*</span>
+                </span>
                 <input
                   type="text"
                   value={newSnapName}
                   onChange={(e) => setNewSnapName(e.target.value)}
                   placeholder="e.g., before-update"
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid #ddd", color: "#000" }}
                 />
-              </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500", color: "#000" }}>
-                  Description
-                </label>
+              </label>
+              <label>
+                Description
                 <input
                   type="text"
                   value={newSnapDescription}
                   onChange={(e) => setNewSnapDescription(e.target.value)}
                   placeholder="Optional description"
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid #ddd", color: "#000" }}
                 />
-              </div>
-            </div>
-            {guestType === "qemu" && (
-              <div style={{ marginTop: "1rem" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", color: "#000" }}>
+              </label>
+              {guestType === "qemu" && (
+                <label className="checkbox-row">
                   <input
                     type="checkbox"
                     checked={newSnapVmstate}
                     onChange={(e) => setNewSnapVmstate(e.target.checked)}
                   />
-                  <span style={{ color: "#000" }}>Include VM state (RAM) - allows restoring running state</span>
+                  <span>Include VM state (RAM) - allows restoring running state</span>
                 </label>
-              </div>
-            )}
-            <div style={{ marginTop: "1rem" }}>
+              )}
               <button type="button" onClick={handleCreateSnapshot} disabled={!canOperate}>
                 Create Snapshot
               </button>
@@ -530,7 +522,7 @@ export function GuestDetailPage() {
           </div>
         )}
 
-        <div style={{ marginBottom: "1rem", fontSize: "0.9rem", color: snapshotStatus.includes("Failed") ? "#d32f2f" : "#666" }}>
+        <div style={{ marginBottom: "1rem", fontSize: "0.9rem", color: snapshotStatus.includes("Failed") ? "#fecaca" : "#9ca3af" }}>
           Status: {snapshotStatus}
         </div>
 

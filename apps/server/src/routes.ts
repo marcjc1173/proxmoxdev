@@ -783,7 +783,7 @@ apiRouter.get("/proxmox/guests/:type/:node/:vmid/metrics", requireAuth, requireR
   }
 });
 
-apiRouter.post("/proxmox/guests/:type/:node/:vmid/:action", requireAuth, requireRole("operator"), async (req, res, next) => {
+apiRouter.post("/proxmox/guests/:type/:node/:vmid/:action(start|stop|reboot|shutdown)", requireAuth, requireRole("operator"), async (req, res, next) => {
   try {
     const { action } = req.params;
     const parsed = parseGuestIdentity(req);
