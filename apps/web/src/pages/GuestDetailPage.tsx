@@ -5,6 +5,7 @@ import {
   fetchGuestDetails,
   fetchGuestMetrics,
   triggerGuestAction,
+  fetchTaskStatus,
   fetchGuestSnapshots,
   createGuestSnapshot,
   rollbackGuestSnapshot,
@@ -37,6 +38,7 @@ export function GuestDetailPage() {
   const [newSnapDescription, setNewSnapDescription] = useState<string>("");
   const [newSnapVmstate, setNewSnapVmstate] = useState<boolean>(false);
   const [snapshotStatus, setSnapshotStatus] = useState<string>("-");
+  const [isRollbackInProgress, setIsRollbackInProgress] = useState<boolean>(false);
   const currentRole = getStoredRole();
   const canOperate = currentRole === "operator" || currentRole === "admin";
 
@@ -207,6 +209,29 @@ export function GuestDetailPage() {
     window.open(consoleUrl, "_blank", "noopener,noreferrer");
   };
 
+  const waitForTaskCompletion = async (upid: string) => {
+    for (let attempt = 1; attempt <= 120; attempt += 1) {
+      const task = await fetchTaskStatus({ upid, node: guestNode });
+      const status = String(task.status || "").toLowerCase();
+      const exitstatus = String(task.exitstatus || "");
+
+      if (status === "stopped") {
+        return {
+          success: !exitstatus || exitstatus.toUpperCase() === "OK",
+          exitstatus
+        };
+      }
+
+      if (attempt % 3 === 0) {
+        setSnapshotStatus(`Rollback in progress... (task ${attempt * 2}s elapsed)`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    throw new Error("Rollback is still running after 4 minutes. Check Proxmox task history and refresh this page.");
+  };
+
   const handleCreateSnapshot = async () => {
     if (!newSnapName.trim()) {
       setSnapshotStatus("Snapshot name is required");
@@ -243,26 +268,67 @@ export function GuestDetailPage() {
   };
 
   const handleRollbackSnapshot = async (snapname: string) => {
+    if (isRollbackInProgress) {
+      return;
+    }
+
     if (!window.confirm(`Rollback ${name} to snapshot "${snapname}"? This will restore the guest to the state of this snapshot.`)) {
       return;
     }
 
-    setSnapshotStatus(`Rolling back to snapshot "${snapname}"...`);
+    setIsRollbackInProgress(true);
+    setSnapshotStatus(`Starting rollback to snapshot "${snapname}"...`);
     try {
-      await rollbackGuestSnapshot({
+      const { upid } = await rollbackGuestSnapshot({
         type: guestType,
         node: guestNode,
         vmid: guestVmid,
         snapname,
         reason: `Manual rollback from web UI`
       });
-      setSnapshotStatus(`Rolled back to snapshot "${snapname}" successfully`);
+
+      setSnapshotStatus(`Rollback task queued. Monitoring progress...`);
+      const result = await waitForTaskCompletion(upid);
+
+      if (result.success) {
+        setSnapshotStatus(`Rollback to snapshot "${snapname}" completed successfully`);
+
+        if (window.confirm("Delete this snapshot now?")) {
+          setSnapshotStatus(`Deleting snapshot "${snapname}"...`);
+          await deleteGuestSnapshot({
+            type: guestType,
+            node: guestNode,
+            vmid: guestVmid,
+            snapname,
+            reason: `Post-rollback cleanup from web UI`
+          });
+          setSnapshotStatus(`Rollback completed and snapshot "${snapname}" deleted`);
+        }
+      } else {
+        setSnapshotStatus(
+          `Rollback task finished with status "${result.exitstatus || "unknown"}". Check Proxmox tasks for details.`
+        );
+      }
+
+      const [guestDetails, snapshotData] = await Promise.all([
+        fetchGuestDetails({ type: guestType, node: guestNode, vmid: guestVmid }),
+        fetchGuestSnapshots({ type: guestType, node: guestNode, vmid: guestVmid })
+      ]);
+
+      setGuestData(guestDetails);
+      setSnapshots(snapshotData);
     } catch (err) {
       setSnapshotStatus(`Failed to rollback: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsRollbackInProgress(false);
     }
   };
 
   const handleDeleteSnapshot = async (snapname: string) => {
+    if (isRollbackInProgress) {
+      return;
+    }
+
     if (!window.confirm(`Delete snapshot "${snapname}"? This action cannot be undone.`)) {
       return;
     }
@@ -515,7 +581,7 @@ export function GuestDetailPage() {
                   <span>Include VM state (RAM) - allows restoring running state</span>
                 </label>
               )}
-              <button type="button" onClick={handleCreateSnapshot} disabled={!canOperate}>
+              <button type="button" onClick={handleCreateSnapshot} disabled={!canOperate || isRollbackInProgress}>
                 Create Snapshot
               </button>
             </div>
@@ -568,15 +634,15 @@ export function GuestDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => handleRollbackSnapshot(snapname)}
-                                disabled={!snapname}
+                                disabled={!snapname || isRollbackInProgress}
                                 style={{ padding: "0.25rem 0.75rem", fontSize: "0.85rem" }}
                               >
-                                Rollback
+                                {isRollbackInProgress ? "Rollback Running..." : "Rollback"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteSnapshot(snapname)}
-                                disabled={!snapname}
+                                disabled={!snapname || isRollbackInProgress}
                                 style={{ padding: "0.25rem 0.75rem", fontSize: "0.85rem", background: "#d32f2f" }}
                               >
                                 Delete
