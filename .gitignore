@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+npm-debug.log*
+apps/server/data/users.json
+apps/server/data/metrics.db
+apps/server/tmp/
+*.tsbuildinfo
+*.backup

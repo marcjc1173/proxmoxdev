@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "maintenanceWindowEnabled": false,
+  "maintenanceStartHourUtc": 0,
+  "maintenanceEndHourUtc": 6,
+  "protectedVmids": [],
+  "protectedNames": []
+}
