@@ -39,4 +39,36 @@ describe("guest snapshots routes", () => {
     assert.equal(response.body?.error, "A reason (min 4 chars) is required for this action");
     assert.notEqual(response.body?.error, "Invalid guest action");
   });
+
+  it("rejects rollback to current snapshot marker", async () => {
+    const app = express();
+    app.use(express.json());
+    app.use("/api", apiRouter);
+
+    const token = issueToken({ username: "test-admin", role: "admin" });
+
+    const response = await request(app)
+      .post("/api/proxmox/guests/qemu/test-node/100/snapshots/current/rollback")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "need rollback" });
+
+    assert.equal(response.status, 400);
+    assert.equal(response.body?.error, "Cannot rollback to current snapshot marker");
+  });
+
+  it("rejects deleting current snapshot marker", async () => {
+    const app = express();
+    app.use(express.json());
+    app.use("/api", apiRouter);
+
+    const token = issueToken({ username: "test-admin", role: "admin" });
+
+    const response = await request(app)
+      .delete("/api/proxmox/guests/qemu/test-node/100/snapshots/current")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "cleanup test" });
+
+    assert.equal(response.status, 400);
+    assert.equal(response.body?.error, "Cannot delete current snapshot marker");
+  });
 });

@@ -545,40 +545,49 @@ export function GuestDetailPage() {
                   </td>
                 </tr>
               ) : (
-                snapshots.map((snap) => (
-                  <tr key={snap.name}>
-                    <td style={{ fontWeight: "500" }}>{snap.name || "-"}</td>
-                    <td>{snap.description || "-"}</td>
-                    <td>
-                      {snap.snaptime
-                        ? new Date(snap.snaptime * 1000).toLocaleString()
-                        : "-"}
-                    </td>
-                    <td>{snap.parent || "-"}</td>
-                    {canOperate && (
+                snapshots.map((snap) => {
+                  const snapname = (snap.name || "").trim();
+                  const isCurrentMarker = snapname.toLowerCase() === "current";
+
+                  return (
+                    <tr key={snap.name}>
+                      <td style={{ fontWeight: "500" }}>{snap.name || "-"}</td>
+                      <td>{snap.description || "-"}</td>
                       <td>
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
-                          <button
-                            type="button"
-                            onClick={() => handleRollbackSnapshot(snap.name || "")}
-                            disabled={!snap.name}
-                            style={{ padding: "0.25rem 0.75rem", fontSize: "0.85rem" }}
-                          >
-                            Rollback
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSnapshot(snap.name || "")}
-                            disabled={!snap.name}
-                            style={{ padding: "0.25rem 0.75rem", fontSize: "0.85rem", background: "#d32f2f" }}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {snap.snaptime
+                          ? new Date(snap.snaptime * 1000).toLocaleString()
+                          : "-"}
                       </td>
-                    )}
-                  </tr>
-                ))
+                      <td>{snap.parent || "-"}</td>
+                      {canOperate && (
+                        <td>
+                          {isCurrentMarker ? (
+                            <span style={{ color: "#9ca3af", fontSize: "0.85rem" }}>Current state</span>
+                          ) : (
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRollbackSnapshot(snapname)}
+                                disabled={!snapname}
+                                style={{ padding: "0.25rem 0.75rem", fontSize: "0.85rem" }}
+                              >
+                                Rollback
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSnapshot(snapname)}
+                                disabled={!snapname}
+                                style={{ padding: "0.25rem 0.75rem", fontSize: "0.85rem", background: "#d32f2f" }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

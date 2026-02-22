@@ -900,6 +900,9 @@ apiRouter.post(
       if (!snapname) {
         return res.status(400).json({ error: "Invalid snapshot name" });
       }
+      if (snapname.toLowerCase() === "current") {
+        return res.status(400).json({ error: "Cannot rollback to current snapshot marker" });
+      }
 
       const guestName = await resolveGuestName(parsed.value);
       const guardrail = evaluatePolicyGuardrails({
@@ -940,6 +943,9 @@ apiRouter.delete("/proxmox/guests/:type/:node/:vmid/snapshots/:snapname", requir
     const snapname = typeof req.params.snapname === "string" ? req.params.snapname.trim() : "";
     if (!snapname) {
       return res.status(400).json({ error: "Invalid snapshot name" });
+    }
+    if (snapname.toLowerCase() === "current") {
+      return res.status(400).json({ error: "Cannot delete current snapshot marker" });
     }
 
     const guestName = await resolveGuestName(parsed.value);

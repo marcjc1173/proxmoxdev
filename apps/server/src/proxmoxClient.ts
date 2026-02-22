@@ -255,11 +255,36 @@ class ProxmoxClient {
   }
 
   getStorage() {
-    return this.request<ProxmoxStorage[]>({
+    return this.request<Array<Record<string, unknown>>>({
       method: "GET",
       url: "/cluster/resources",
       params: { type: "storage" }
-    });
+    }).then((items) =>
+      items.map((item) => {
+        const used =
+          typeof item.used === "number"
+            ? item.used
+            : typeof item.disk === "number"
+              ? item.disk
+              : undefined;
+
+        const total =
+          typeof item.total === "number"
+            ? item.total
+            : typeof item.maxdisk === "number"
+              ? item.maxdisk
+              : undefined;
+
+        return {
+          ...item,
+          storage: String(item.storage ?? "unknown"),
+          node: String(item.node ?? "unknown"),
+          type: String(item.type ?? "unknown"),
+          used,
+          total
+        } as ProxmoxStorage;
+      })
+    );
   }
 
   getRecentTasks(limit = 25) {
