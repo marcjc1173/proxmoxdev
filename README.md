@@ -2,67 +2,161 @@
 
 A plug-and-play, vCenter-like starter app for Proxmox VE.
 
+This README is the complete install and access-rights guide, including how to create the Proxmox API user/token and ACLs so first-time setup works end-to-end.
+
+## Quick path
+
+If you want the fastest copy/paste setup first, start here:
+
+- `docs/setup-walkthrough.md` → **5-minute quick path (token mode)**
+
 ## What this includes
 
 - Proxmox API integration with token auth **or** user/password auth
 - Dashboard overview (nodes, VMs, containers, storage, cluster health)
 - Recent tasks and recent cluster events
-- Environment-driven setup (`.env` only)
-- Full-stack TypeScript workspace (Express + React)
+- Guest power, snapshots, cloning, template conversion
+- Template and ISO-based provisioning workflows
+- Optional app-level auth/RBAC (`viewer`, `operator`, `admin`)
+- Alarm engine + webhook notifications
 
-## Quick start
+## Prerequisites
 
-1. Install dependencies:
+- Node.js 20+ and npm
+- A reachable Proxmox VE API endpoint (example: `https://<proxmox-host>:8006`)
+- A Proxmox account/token with sufficient rights (see below)
+
+---
+
+## 1) Create a Proxmox API user/token and assign access rights
+
+You have two supported approaches.
+
+### Option A (fastest, guaranteed to work): API token with full admin rights
+
+Use this if you want the app to work immediately with all built-in operations.
+
+1. In Proxmox UI, go to **Datacenter → Permissions → Users**.
+2. Create a service user (example: `proxmox-center@pve`) or use an existing admin user.
+3. Go to **Datacenter → Permissions → API Tokens**.
+4. Create a token for that user (example token name: `app`).
+5. Copy/save the token secret (shown once).
+6. Go to **Datacenter → Permissions → Add** and grant an ACL on path `/` with an admin-capable role for this user/token.
+
+Then set:
+
+- `PROXMOX_AUTH_MODE=token`
+- `PROXMOX_API_TOKEN_ID=<user@realm!tokenname>`
+- `PROXMOX_API_TOKEN_SECRET=<token-secret>`
+
+Example token id format:
+
+- `proxmox-center@pve!app`
+- `root@pam!api`
+
+### Option B: username/password auth
+
+Set:
+
+- `PROXMOX_AUTH_MODE=password`
+- `PROXMOX_USERNAME=<username-without-realm>` (example: `root`)
+- `PROXMOX_PASSWORD=<password>`
+- `PROXMOX_REALM=<realm>` (default: `pam`)
+
+### Rights needed by feature (for least-privilege planning)
+
+If you do not use full admin rights, make sure your assigned role(s) allow these operations:
+
+- **Read-only dashboard**: cluster/nodes/storage/resources/tasks/log visibility
+- **Power operations**: start/stop/reboot/shutdown VMs and LXC
+- **Snapshots**: list/create/rollback/delete
+- **Clone/template**: clone guests, convert QEMU VM to template
+- **Provisioning**: create/configure QEMU VMs, read storage content, upload ISO, attach disks/ISO, optional cloud-init config
+
+If any permission is missing, affected API calls will return Proxmox authorization errors.
+
+### CLI setup example (copy/paste on a Proxmox node)
+
+If you prefer command-line setup, run these in the Proxmox shell (as root), then use the resulting token in `apps/server/.env`.
+
+```bash
+# 1) Create service user (skip if it already exists)
+pveum user add proxmox-center@pve --comment "Proxmox Center API user"
+
+# 2) Create custom role (if already created, use the modify command below instead)
+pveum role add ProxmoxCenterRole -privs "VM.Audit VM.Allocate VM.PowerMgmt VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.Disk VM.Config.HWType VM.Clone VM.Snapshot Datastore.Audit Datastore.AllocateSpace Datastore.AllocateTemplate Sys.Audit Pool.Audit SDN.Use"
+
+# 3) If role already exists, update it to this exact privilege set
+pveum role modify ProxmoxCenterRole -privs "VM.Audit VM.Allocate VM.PowerMgmt VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.Disk VM.Config.HWType VM.Clone VM.Snapshot Datastore.Audit Datastore.AllocateSpace Datastore.AllocateTemplate Sys.Audit Pool.Audit SDN.Use"
+
+# 4) Assign role at Datacenter root so the app can work across resources
+pveum aclmod / -user proxmox-center@pve -role ProxmoxCenterRole
+
+# 5) Create API token for the user (save the token value shown once)
+pveum user token add proxmox-center@pve app --privsep 0
+```
+
+Then set:
+
+- `PROXMOX_AUTH_MODE=token`
+- `PROXMOX_API_TOKEN_ID=proxmox-center@pve!app`
+- `PROXMOX_API_TOKEN_SECRET=<token-value-from-command-output>`
+
+Quick verification on Proxmox shell:
+
+```bash
+pveum role show ProxmoxCenterRole
+pveum acl list | grep proxmox-center@pve
+pveum user token list proxmox-center@pve
+```
+
+---
+
+## 2) Install and configure the app
+
+From the repo root:
 
 ```bash
 npm install
-```
-
-2. Generate local env files:
-
-```bash
 npm run setup
 ```
 
-3. Fill required Proxmox values in `apps/server/.env`:
+This creates:
 
-- `PROXMOX_BASE_URL`
-- `PROXMOX_AUTH_MODE`
-- token values (`PROXMOX_API_TOKEN_ID` / `PROXMOX_API_TOKEN_SECRET`) or password values
+- `apps/server/.env` (from `.env.example` if missing)
+- `apps/web/.env` (from `.env.example` if missing)
 
-4. Start:
+Now edit `apps/server/.env` and set at minimum:
 
-```bash
-npm run dev
+```dotenv
+PROXMOX_BASE_URL=https://YOUR_PROXMOX_IP_OR_DNS:8006
+PROXMOX_ALLOW_SELF_SIGNED=true
+
+PROXMOX_AUTH_MODE=token
+PROXMOX_API_TOKEN_ID=proxmox-center@pve!app
+PROXMOX_API_TOKEN_SECRET=replace_with_secret
 ```
 
-- Web: `http://localhost:5173`
-- API: `http://localhost:4000/api`
+For password mode instead:
 
-## Auth modes
+```dotenv
+PROXMOX_AUTH_MODE=password
+PROXMOX_USERNAME=root
+PROXMOX_PASSWORD=replace_with_password
+PROXMOX_REALM=pam
+```
 
-Choose one mode in `apps/server/.env`:
+Web API base URL is in `apps/web/.env`:
 
-### A) API token (recommended)
-- `PROXMOX_API_TOKEN_ID`
-- `PROXMOX_API_TOKEN_SECRET`
+```dotenv
+VITE_API_BASE_URL=http://localhost:4000/api
+```
 
-### B) Username/password
-- `PROXMOX_USERNAME`
-- `PROXMOX_PASSWORD`
-- `PROXMOX_REALM`
+---
 
-## App RBAC (optional)
+## 3) (Optional) Enable app login + RBAC
 
-Enable app-level login and roles in `apps/server/.env`:
-
-- `APP_AUTH_ENABLED=true`
-- `APP_JWT_SECRET=<long-random-secret>`
-- `APP_USERS_FILE=<optional path>`
-- `APP_BOOTSTRAP_ADMIN_USERNAME=<default: admin>`
-- `APP_BOOTSTRAP_ADMIN_PASSWORD=<required for first-run auto-bootstrap if APP_USERS is empty>`
-
-Fast path (recommended):
+If you want Proxmox Center users/roles in the UI, run:
 
 ```bash
 npm run setup:auth
@@ -70,43 +164,68 @@ npm run setup:auth
 
 This will:
 
-- copy missing `.env` files from `.env.example`
-- generate a secure `APP_JWT_SECRET` if still placeholder
-- enable app auth
-- create a bootstrap admin password in `apps/server/.env`
-- persist first-run users to `apps/server/data/users.json`
+- enable `APP_AUTH_ENABLED=true`
+- generate `APP_JWT_SECRET` if placeholder
+- set `APP_USERS_FILE=apps/server/data/users.json`
+- generate `APP_BOOTSTRAP_ADMIN_PASSWORD` if empty
 
-`APP_USERS` JSON is still supported for explicit seeded user lists, but is no longer required.
+On first run, if no users file exists, an admin is bootstrapped from:
 
-Role model:
+- `APP_BOOTSTRAP_ADMIN_USERNAME` (default `admin`)
+- `APP_BOOTSTRAP_ADMIN_PASSWORD`
+
+App roles:
 
 - `viewer`: read-only dashboards
-- `operator`: viewer + power actions, snapshot create, clone
-- `admin`: operator + snapshot rollback/delete, VM template conversion
+- `operator`: viewer + power actions + snapshot create + clone + alarm acknowledge/silence
+- `admin`: operator + snapshot rollback/delete + template conversion + user/policy admin + force alarm evaluation
 
-When RBAC is enabled, users are persisted in `apps/server/data/users.json` (or `APP_USERS_FILE` if set).
-The UI includes an **Admin Users** page for admin role to create users, change roles, reset passwords, and delete users.
+More details: `docs/permissions.md`.
 
-## Alarm settings
+---
 
-Tune thresholds and frequency in `apps/server/.env`:
+## 4) Run
 
-- `ALARMS_POLL_INTERVAL_SECONDS`
-- `ALARM_CPU_WARN_PERCENT`
-- `ALARM_MEM_WARN_PERCENT`
-- `ALARM_DISK_WARN_PERCENT`
-- `ALARM_STORAGE_WARN_PERCENT`
-- `ALARM_WEBHOOK_ENABLED`
-- `ALARM_WEBHOOK_URL`
-- `ALARM_WEBHOOK_PROVIDER` (`generic`, `slack`, `teams`)
-- `ALARM_WEBHOOK_RETRY_MAX`
-- `ALARM_WEBHOOK_RETRY_BACKOFF_MS`
-- `ALARM_WEBHOOK_AUDIT_LIMIT`
+```bash
+npm run dev
+```
 
-## Notes
+- Web UI: `http://localhost:5173`
+- API base: `http://localhost:4000/api`
+- Health check: `http://localhost:4000/api/health`
 
-- Most Proxmox installs use self-signed certs. Set `PROXMOX_ALLOW_SELF_SIGNED=true` for development.
-- This is a strong foundation for advanced features like RBAC, alarms, templates, snapshots, HA orchestration, and lifecycle actions.
+## 5) Verify connectivity quickly
+
+Once running, verify Proxmox API access:
+
+- `GET /api/proxmox/version`
+- `GET /api/proxmox/overview`
+
+If app auth is enabled, log in first in the UI, or call `POST /api/auth/login` and use the bearer token.
+
+---
+
+## Common startup issues (and fixes)
+
+- **`npm run dev` exits immediately**
+	- Run `npm run build` to surface TypeScript/config errors.
+	- Check `apps/server/.env` for missing required values.
+	- `PROXMOX_BASE_URL` must be a valid URL.
+	- In token mode, both `PROXMOX_API_TOKEN_ID` and `PROXMOX_API_TOKEN_SECRET` are required.
+	- In password mode, both `PROXMOX_USERNAME` and `PROXMOX_PASSWORD` are required.
+
+- **Proxmox SSL/certificate errors**
+	- For self-signed lab environments, set `PROXMOX_ALLOW_SELF_SIGNED=true`.
+
+- **401/permission errors from Proxmox endpoints**
+	- Re-check token format: `user@realm!tokenname`.
+	- Confirm token secret is current.
+	- Confirm ACL rights cover the features you are using.
+
+- **Port conflicts on 4000 or 5173**
+	- Stop existing processes using those ports, then re-run `npm run dev`.
+
+---
 
 ## API surface (starter)
 
@@ -136,16 +255,6 @@ Tune thresholds and frequency in `apps/server/.env`:
 - `POST /api/alarms/evaluate` (admin)
 - `GET /api/alarms/notifications` (admin delivery audit)
 
-## Project layout
-
-- `apps/server`: Express API, Proxmox auth/session handling, aggregated overview endpoints
-- `apps/web`: React dashboard for operations visibility
-
-Additional docs:
-
-- `docs/permissions.md`: role model, guardrails, and bootstrap behavior
-- `CONTRIBUTING.md`: local setup and PR expectations
-
 ## Built-in operations
 
 - Guest power actions from UI: `start`, `stop`, `reboot`, `shutdown`
@@ -161,3 +270,11 @@ Additional docs:
 - Role-based alarm actions: viewer can view, operator/admin can acknowledge/silence, admin can force evaluation
 - Webhook notifications for newly critical alarms (generic/slack/teams payload formats)
 - Webhook delivery retry with exponential backoff and admin audit log endpoint
+
+## Project layout
+
+- `apps/server`: Express API, Proxmox auth/session handling, metrics/alarms/policy routes
+- `apps/web`: React dashboard and operations UI
+- `docs/setup-walkthrough.md`: copy/paste command walkthrough for first-time setup
+- `docs/permissions.md`: app RBAC model + guardrails
+- `CONTRIBUTING.md`: contributor workflow
