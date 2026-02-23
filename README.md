@@ -20,6 +20,25 @@ If you want the fastest copy/paste setup first, start here:
 - Optional app-level auth/RBAC (`viewer`, `operator`, `admin`)
 - Alarm engine + webhook notifications
 
+## Screenshots
+
+
+### Overview
+
+![Overview dashboard](docs/screenshots/overview.png)
+
+### Guest detail + metrics
+
+![Guest detail metrics](docs/screenshots/guest-detail.png)
+
+### Alarms
+
+![Alarms page](docs/screenshots/alarms.png)
+
+### Provisioning
+
+![Provisioning wizard](docs/screenshots/provisioning.png)
+
 ## Prerequisites
 
 - Node.js 20+ and npm
