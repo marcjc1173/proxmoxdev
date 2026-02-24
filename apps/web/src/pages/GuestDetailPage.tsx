@@ -444,10 +444,6 @@ export function GuestDetailPage() {
 
   return (
     <>
-      {/* DEBUG INFO: Remove after troubleshooting */}
-      <div style={{ background: '#f3f4f6', color: '#333', padding: '0.5rem 1rem', marginBottom: '1rem', border: '1px dashed #888', fontSize: '0.95rem' }}>
-        <strong>Debug Info:</strong> guestType = <code>{String(guestType)}</code>, currentRole = <code>{String(currentRole)}</code>
-      </div>
       <div className="guest-detail-header">
         <div>
           <h2>
