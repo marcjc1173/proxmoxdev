@@ -1,13 +1,3 @@
-import { fetchProvisioningIsos, mountIsoToQemuVm, unmountIsoFromQemuVm, ProvisioningIso } from "../api";
-  const handleUnmountIso = async () => {
-    setIsoMountStatus("Unmounting ISO...");
-    try {
-      const { upid } = await unmountIsoFromQemuVm({ node: guestNode, vmid: guestVmid });
-      setIsoMountStatus(`Unmount requested (task: ${upid})`);
-    } catch (err) {
-      setIsoMountStatus(`Failed to unmount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
-    }
-  };
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -26,10 +16,24 @@ import {
   GuestType,
   GuestAction,
   MetricRecord,
-  GuestSnapshot
+  GuestSnapshot,
+  fetchProvisioningIsos,
+  mountIsoToQemuVm,
+  unmountIsoFromQemuVm,
+  ProvisioningIso
 } from "../api";
 
 export function GuestDetailPage() {
+
+    const handleUnmountIso = async () => {
+      setIsoMountStatus("Unmounting ISO...");
+      try {
+        const { upid } = await unmountIsoFromQemuVm({ node: guestNode, vmid: guestVmid });
+        setIsoMountStatus(`Unmount requested (task: ${upid})`);
+      } catch (err) {
+        setIsoMountStatus(`Failed to unmount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+    };
   const { type, node, vmid } = useParams<{ type: string; node: string; vmid: string }>();
   const [guestData, setGuestData] = useState<{
     type: GuestType;
