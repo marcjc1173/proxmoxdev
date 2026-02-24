@@ -112,6 +112,94 @@ npm install
 npm run setup
 ```
 
+## 1.1) Linux server: getting the code onto the box
+
+Choose one method.
+
+### A) Clone repo on server (recommended)
+
+```bash
+sudo mkdir -p /opt/proxmox-center
+sudo chown "$USER":"$USER" /opt/proxmox-center
+cd /opt
+git clone https://github.com/<owner>/<repo>.git proxmox-center
+cd /opt/proxmox-center
+git checkout main
+npm install
+npm run install:apps
+npm run setup
+```
+
+### B) Copy your current workspace (includes local unpushed changes)
+
+From your local machine (example Windows PowerShell):
+
+```powershell
+scp -r C:\proxmoxdev <user>@<server-ip>:/opt/proxmox-center
+```
+
+Then on the Linux server:
+
+```bash
+cd /opt/proxmox-center
+npm install
+npm run install:apps
+npm run setup
+```
+
+### C) Archive + upload
+
+Zip/tar your local workspace, upload to server, extract to `/opt/proxmox-center`, then run install/setup commands.
+
+## 1.2) Linux server updates after repo changes
+
+If deployed via Git clone, update with:
+
+```bash
+cd /opt/proxmox-center
+git fetch origin
+git pull --ff-only origin main
+npm ci
+npm run build
+sudo systemctl restart proxmox-center-api
+sudo systemctl reload nginx
+curl http://127.0.0.1:4000/api/health
+```
+
+Or run the automated deploy script:
+
+```bash
+cd /opt/proxmox-center
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+Useful variants:
+
+```bash
+./scripts/deploy.sh --branch staging
+./scripts/deploy.sh --skip-pull
+./scripts/deploy.sh --api-service proxmox-center-api --web-service nginx
+```
+
+If deployed by copying files (no `.git`):
+
+1. Re-copy changed files to `/opt/proxmox-center`
+2. Run:
+
+```bash
+cd /opt/proxmox-center
+npm ci
+npm run build
+sudo systemctl restart proxmox-center-api
+sudo systemctl reload nginx
+curl http://127.0.0.1:4000/api/health
+```
+
+Best practice: use Git clone deployments so updates are one repeatable pull/build/restart flow.
+
+Security reminder: do not commit real secrets to Git; if a token secret is exposed, rotate it in Proxmox and update `apps/server/.env`.
+
 ## 2) Configure Proxmox connection
 
 Open server env file:

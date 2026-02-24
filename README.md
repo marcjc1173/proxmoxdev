@@ -180,6 +180,105 @@ This means opening the UI via `http://<server-ip>:5173` will automatically call 
 
 ---
 
+## 2.1) Deploy the code to a new Linux server
+
+Use one of these methods to get this repository onto a new server.
+
+### Option A (recommended): clone from Git
+
+```bash
+sudo mkdir -p /opt/proxmox-center
+sudo chown "$USER":"$USER" /opt/proxmox-center
+cd /opt
+git clone https://github.com/<owner>/<repo>.git proxmox-center
+cd /opt/proxmox-center
+git checkout main
+```
+
+For private repos, use SSH clone URL and ensure the server's SSH key is added to your Git provider.
+
+### Option B: copy an existing local workspace
+
+From your local machine, copy your current workspace to the server (for example with `scp` or `rsync`).
+
+Example from Windows PowerShell:
+
+```powershell
+scp -r C:\proxmoxdev <user>@<server-ip>:/opt/proxmox-center
+```
+
+### Option C: archive + upload
+
+Create a zip/tar archive locally, upload it, then extract on the server.
+
+### Verify code is in place
+
+On the server:
+
+```bash
+cd /opt/proxmox-center
+ls
+cat package.json
+```
+
+Then continue with install/setup commands:
+
+```bash
+npm install
+npm run install:apps
+npm run setup
+```
+
+---
+
+## 2.2) Update an existing Linux server when the repo changes
+
+If the server is a Git clone, use this standard update flow:
+
+```bash
+cd /opt/proxmox-center
+git fetch origin
+git pull --ff-only origin main
+npm ci
+npm run build
+sudo systemctl restart proxmox-center-api
+sudo systemctl reload nginx
+curl http://127.0.0.1:4000/api/health
+```
+
+Or use the provided deploy script (recommended for repeatable updates):
+
+```bash
+cd /opt/proxmox-center
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+Common overrides:
+
+```bash
+./scripts/deploy.sh --branch staging
+./scripts/deploy.sh --api-service proxmox-center-api --web-service nginx
+./scripts/deploy.sh --skip-pull
+```
+
+If the server is not a Git clone (copied files only), copy updated files again, then run:
+
+```bash
+cd /opt/proxmox-center
+npm ci
+npm run build
+sudo systemctl restart proxmox-center-api
+sudo systemctl reload nginx
+curl http://127.0.0.1:4000/api/health
+```
+
+Recommendation: prefer a Git clone on the server so updates are pull-based and repeatable.
+
+Security note: keep production secrets in server-only `.env` files, and rotate tokens immediately if a secret was exposed.
+
+---
+
 ## 3) (Optional) Enable app login + RBAC
 
 If you want Proxmox Center users/roles in the UI, run:
