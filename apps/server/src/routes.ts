@@ -1,4 +1,7 @@
 
+
+// ...existing code...
+
 // Mount ISO to QEMU VM CD-ROM
 apiRouter.post("/proxmox/guests/qemu/:node/:vmid/mount-iso", requireAuth, requireRole("operator"), async (req, res, next) => {
   try {
