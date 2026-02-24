@@ -1,8 +1,4 @@
 import { fetchProvisioningIsos, mountIsoToQemuVm, ProvisioningIso } from "../api";
-  // ISO mount state
-  const [isoList, setIsoList] = useState<ProvisioningIso[]>([]);
-  const [selectedIso, setSelectedIso] = useState<string>("");
-  const [isoMountStatus, setIsoMountStatus] = useState<string>("");
 
   // Fetch ISOs for QEMU guests
   useEffect(() => {
@@ -12,6 +8,12 @@ import { fetchProvisioningIsos, mountIsoToQemuVm, ProvisioningIso } from "../api
       .catch(() => setIsoList([]));
   }, [guestType, guestNode]);
 
+  
+  // ISO mount state (must be inside the component)
+  const [isoList, setIsoList] = useState<ProvisioningIso[]>([]);
+  const [selectedIso, setSelectedIso] = useState<string>("");
+  const [isoMountStatus, setIsoMountStatus] = useState<string>("");
+  
   const handleMountIso = async () => {
     if (!selectedIso) {
       setIsoMountStatus("Please select an ISO image.");
