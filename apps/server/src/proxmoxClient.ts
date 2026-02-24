@@ -417,21 +417,28 @@ class ProxmoxClient {
   async getGuestAssignedIp(input: { type: GuestType; node: string; vmid: number }): Promise<string | undefined> {
     try {
       if (input.type === "qemu") {
+        // QEMU requires guest agent API access
+        // Required permission: VM.GuestAgent.Audit or VM.GuestAgent.Unrestricted
         const qemuInterfaces = await this.request<Record<string, unknown>>({
           method: "GET",
           url: `/nodes/${input.node}/qemu/${input.vmid}/agent/network-get-interfaces`
         });
 
-        return pickPrimaryAssignedIp(qemuInterfaces);
+        const ip = pickPrimaryAssignedIp(qemuInterfaces);
+        return ip;
       }
 
+      // LXC containers expose network interfaces via a different endpoint
       const lxcInterfaces = await this.request<unknown>({
         method: "GET",
         url: `/nodes/${input.node}/lxc/${input.vmid}/interfaces`
       });
 
-      return pickPrimaryAssignedIp(lxcInterfaces);
-    } catch {
+      const ip = pickPrimaryAssignedIp(lxcInterfaces);
+      return ip;
+    } catch (error) {
+      // Silently fail - permissions or guest agent may not be available
+      // For QEMU: ensure guest agent is installed and API token has VM.GuestAgent.Audit permission
       return undefined;
     }
   }

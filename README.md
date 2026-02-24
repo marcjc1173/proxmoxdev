@@ -91,8 +91,13 @@ If you do not use full admin rights, make sure your assigned role(s) allow these
 - **Snapshots**: list/create/rollback/delete
 - **Clone/template**: clone guests, convert QEMU VM to template
 - **Provisioning**: create/configure QEMU VMs, read storage content, upload ISO, attach disks/ISO, optional cloud-init config
+- **VM IP addresses (QEMU)**: requires QEMU guest agent installed in VM + `VM.GuestAgent.Audit` permission
 
 If any permission is missing, affected API calls will return Proxmox authorization errors.
+
+**Note on IP address display**: 
+- For **QEMU VMs**, IP addresses require the QEMU guest agent to be installed inside the VM and the API user/token must have `VM.GuestAgent.Audit` or `VM.GuestAgent.Unrestricted` permission
+- For **LXC containers**, IP addresses are retrieved directly from Proxmox without requiring guest tools
 
 ### CLI setup example (copy/paste on a Proxmox node)
 
@@ -103,10 +108,10 @@ If you prefer command-line setup, run these in the Proxmox shell (as root), then
 pveum user add proxmox-center@pve --comment "Proxmox Center API user"
 
 # 2) Create custom role (if already created, use the modify command below instead)
-pveum role add ProxmoxCenterRole -privs "VM.Audit VM.Allocate VM.PowerMgmt VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.Disk VM.Config.HWType VM.Clone VM.Snapshot Datastore.Audit Datastore.AllocateSpace Datastore.AllocateTemplate Sys.Audit Pool.Audit SDN.Use"
+pveum role add ProxmoxCenterRole -privs "VM.Audit VM.Allocate VM.PowerMgmt VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.Disk VM.Config.HWType VM.Clone VM.Snapshot VM.GuestAgent.Audit Datastore.Audit Datastore.AllocateSpace Datastore.AllocateTemplate Sys.Audit Pool.Audit SDN.Use"
 
 # 3) If role already exists, update it to this exact privilege set
-pveum role modify ProxmoxCenterRole -privs "VM.Audit VM.Allocate VM.PowerMgmt VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.Disk VM.Config.HWType VM.Clone VM.Snapshot Datastore.Audit Datastore.AllocateSpace Datastore.AllocateTemplate Sys.Audit Pool.Audit SDN.Use"
+pveum role modify ProxmoxCenterRole -privs "VM.Audit VM.Allocate VM.PowerMgmt VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.Disk VM.Config.HWType VM.Clone VM.Snapshot VM.GuestAgent.Audit Datastore.Audit Datastore.AllocateSpace Datastore.AllocateTemplate Sys.Audit Pool.Audit SDN.Use"
 
 # 4) Assign role at Datacenter root so the app can work across resources
 pveum aclmod / -user proxmox-center@pve -role ProxmoxCenterRole
