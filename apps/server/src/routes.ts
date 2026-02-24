@@ -488,7 +488,11 @@ apiRouter.get("/proxmox/overview", requireAuth, requireRole("viewer"), async (_r
       )
     ]);
 
-    res.json(data);
+    res.json({
+      ...data,
+      qemuVms,
+      lxcVms
+    });
   } catch (error) {
     next(error);
   }
