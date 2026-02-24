@@ -20,7 +20,7 @@ import {
   GuestSnapshot
 } from "../api";
 
-
+export function GuestDetailPage() {
   const { type, node, vmid } = useParams<{ type: string; node: string; vmid: string }>();
   const [guestData, setGuestData] = useState<{
     type: GuestType;
