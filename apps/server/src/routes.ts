@@ -1,4 +1,21 @@
 
+// Mount ISO to QEMU VM CD-ROM
+apiRouter.post("/proxmox/guests/qemu/:node/:vmid/mount-iso", requireAuth, requireRole("operator"), async (req, res, next) => {
+  try {
+    const node = req.params.node;
+    const vmid = Number(req.params.vmid);
+    const isoStorage = typeof req.body.isoStorage === "string" ? req.body.isoStorage.trim() : "";
+    const isoFile = typeof req.body.isoFile === "string" ? req.body.isoFile.trim() : "";
+    if (!node || !vmid || !isoStorage || !isoFile) {
+      return res.status(400).json({ error: "node, vmid, isoStorage, and isoFile are required" });
+    }
+    const result = await proxmoxClient.mountIsoToQemuVm({ node, vmid, isoStorage, isoFile });
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 import { promises as fs } from "node:fs";
 import { Router } from "express";
 import multer from "multer";
