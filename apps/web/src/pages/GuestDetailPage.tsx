@@ -1,3 +1,64 @@
+import { fetchProvisioningIsos, mountIsoToQemuVm, ProvisioningIso } from "../api";
+  // ISO mount state
+  const [isoList, setIsoList] = useState<ProvisioningIso[]>([]);
+  const [selectedIso, setSelectedIso] = useState<string>("");
+  const [isoMountStatus, setIsoMountStatus] = useState<string>("");
+
+  // Fetch ISOs for QEMU guests
+  useEffect(() => {
+    if (guestType !== "qemu" || !guestNode) return;
+    fetchProvisioningIsos(guestNode)
+      .then((res) => setIsoList(res.isos))
+      .catch(() => setIsoList([]));
+  }, [guestType, guestNode]);
+
+  const handleMountIso = async () => {
+    if (!selectedIso) {
+      setIsoMountStatus("Please select an ISO image.");
+      return;
+    }
+    const [isoStorage, isoFile] = selectedIso.split(":iso/");
+    if (!isoStorage || !isoFile) {
+      setIsoMountStatus("Invalid ISO selection.");
+      return;
+    }
+    setIsoMountStatus("Mounting ISO...");
+    try {
+      const { upid } = await mountIsoToQemuVm({ node: guestNode, vmid: guestVmid, isoStorage, isoFile });
+      setIsoMountStatus(`Mount requested (task: ${upid})`);
+    } catch (err) {
+      setIsoMountStatus(`Failed to mount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
+  };
+      {/* ISO Mount Section */}
+      {guestType === "qemu" && canOperate && (
+        <section className="card">
+          <h2>Mount ISO Image</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
+            <select
+              value={selectedIso}
+              onChange={(e) => setSelectedIso(e.target.value)}
+              style={{ minWidth: 220 }}
+            >
+              <option value="">-- Select ISO image --</option>
+              {isoList.map((iso) => (
+                <option key={iso.volid} value={`${iso.storage}:iso/${iso.file}`}>
+                  {iso.file} ({iso.storage})
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={handleMountIso} disabled={!selectedIso}>
+              Mount ISO
+            </button>
+          </div>
+          <div style={{ fontSize: "0.95rem", color: isoMountStatus.includes("fail") ? "#f87171" : "#6b7280" }}>
+            {isoMountStatus}
+          </div>
+          <div style={{ fontSize: "0.85rem", color: "#888", marginTop: "0.5rem" }}>
+            After mounting, use the console to boot from or access the ISO.
+          </div>
+        </section>
+      )}
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";

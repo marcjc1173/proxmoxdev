@@ -1,3 +1,18 @@
+// Mount ISO to an existing QEMU VM
+export async function mountIsoToQemuVm(input: {
+  node: string;
+  vmid: number;
+  isoStorage: string;
+  isoFile: string;
+}): Promise<{ upid: string }> {
+  return postJsonWithBody<{ upid: string }>(
+    `/proxmox/guests/qemu/${encodeURIComponent(input.node)}/${input.vmid}/mount-iso`,
+    {
+      isoStorage: input.isoStorage,
+      isoFile: input.isoFile
+    }
+  );
+}
 const defaultApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:4000/api`;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl;
 const TOKEN_KEY = "pc_token";
