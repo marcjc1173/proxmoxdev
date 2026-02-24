@@ -470,6 +470,9 @@ export function GuestDetailPage() {
 
       <section className="card">
         <h2>Power Controls</h2>
+        <div style={{ marginBottom: "1rem", color: "#d97706", fontSize: "0.95rem" }}>
+          ⚠️ To use the console, you must be logged into the Proxmox web GUI in your browser. If the console does not load, open Proxmox in a new tab and log in, then try again.
+        </div>
         <div className="actions">
           <button type="button" onClick={handleOpenConsole}>
             open console
