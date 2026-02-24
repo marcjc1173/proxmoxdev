@@ -174,6 +174,12 @@ chmod +x scripts/deploy.sh
 ./scripts/deploy.sh
 ```
 
+Shortcut:
+
+```bash
+npm run deploy:linux
+```
+
 Useful variants:
 
 ```bash

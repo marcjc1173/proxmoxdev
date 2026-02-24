@@ -9,6 +9,7 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "setup:auth": "node scripts/setup.mjs --enable-auth",
+    "deploy:linux": "bash ./scripts/deploy.sh",
     "dev:server": "cd apps/server && npm run dev",
     "dev:web": "cd apps/web && npm run dev",
     "dev": "concurrently --raw \"npm run dev:server\" \"npm run dev:web\"",

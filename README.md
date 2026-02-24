@@ -254,6 +254,12 @@ chmod +x scripts/deploy.sh
 ./scripts/deploy.sh
 ```
 
+Shortcut:
+
+```bash
+npm run deploy:linux
+```
+
 Common overrides:
 
 ```bash
