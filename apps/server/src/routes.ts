@@ -1,5 +1,3 @@
-
-
 // Import necessary modules
 import { promises as fs } from "node:fs";
 import { Router } from "express";
@@ -34,6 +32,20 @@ apiRouter.post("/proxmox/guests/qemu/:node/:vmid/mount-iso", requireAuth, requir
   }
 });
 
+// Unmount ISO from QEMU VM CD-ROM
+apiRouter.post("/proxmox/guests/qemu/:node/:vmid/unmount-iso", requireAuth, requireRole("operator"), async (req, res, next) => {
+  try {
+    const node = req.params.node;
+    const vmid = Number(req.params.vmid);
+    if (!node || !vmid) {
+      return res.status(400).json({ error: "node and vmid are required" });
+    }
+    const upid = await proxmoxClient.unmountIsoFromQemuVm({ node, vmid });
+    return res.json({ upid });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 const validGuestTypes = new Set(["qemu", "lxc"]);
 const validActions = new Set(["start", "stop", "reboot", "shutdown"]);
