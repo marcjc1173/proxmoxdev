@@ -591,8 +591,9 @@ export function ProvisioningPage() {
               </select>
             </label>
 
-            {/* Separate line for New VMID */}
-            <label style={{ display: "block", marginTop: 8 }}>
+            {/* Force ISO and New VMID onto separate lines */}
+            <div style={{ clear: "both", height: 0 }} />
+            <label style={{ display: "block", marginTop: 16 }}>
               New VMID
               <input value={isoNewId} onChange={(event) => setIsoNewId(event.target.value)} placeholder="400" />
             </label>
