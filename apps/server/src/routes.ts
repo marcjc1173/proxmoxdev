@@ -1,6 +1,5 @@
 
 
-
 // Import necessary modules
 import { promises as fs } from "node:fs";
 import { Router } from "express";
@@ -28,8 +27,8 @@ apiRouter.post("/proxmox/guests/qemu/:node/:vmid/mount-iso", requireAuth, requir
     if (!node || !vmid || !isoStorage || !isoFile) {
       return res.status(400).json({ error: "node, vmid, isoStorage, and isoFile are required" });
     }
-    const result = await proxmoxClient.mountIsoToQemuVm({ node, vmid, isoStorage, isoFile });
-    return res.json(result);
+    const upid = await proxmoxClient.mountIsoToQemuVm({ node, vmid, isoStorage, isoFile });
+    return res.json({ upid });
   } catch (error) {
     return next(error);
   }

@@ -701,6 +701,26 @@ class ProxmoxClient {
     );
   }
 
+  /**
+   * Unmount (eject) ISO from a QEMU VM's CD-ROM drive (ide2).
+   * @param input.node Node name
+   * @param input.vmid VM ID
+   */
+  async unmountIsoFromQemuVm(input: { node: string; vmid: number }) {
+    // Set ide2 to 'none' to eject ISO
+    const params = {
+      ide2: 'none'
+    };
+    return this.request<string>(
+      {
+        method: "POST",
+        url: `/nodes/${input.node}/qemu/${input.vmid}/config`,
+        params
+      },
+      true
+    );
+  }
+
   private extractNodeFromUpid(upid: string): string | undefined {
     const parts = upid.split(":");
     if (parts.length < 2 || parts[0] !== "UPID") {

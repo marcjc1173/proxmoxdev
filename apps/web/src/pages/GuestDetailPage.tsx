@@ -1,4 +1,13 @@
-import { fetchProvisioningIsos, mountIsoToQemuVm, ProvisioningIso } from "../api";
+import { fetchProvisioningIsos, mountIsoToQemuVm, unmountIsoFromQemuVm, ProvisioningIso } from "../api";
+  const handleUnmountIso = async () => {
+    setIsoMountStatus("Unmounting ISO...");
+    try {
+      const { upid } = await unmountIsoFromQemuVm({ node: guestNode, vmid: guestVmid });
+      setIsoMountStatus(`Unmount requested (task: ${upid})`);
+    } catch (err) {
+      setIsoMountStatus(`Failed to unmount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
+  };
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -588,10 +597,10 @@ export function GuestDetailPage() {
         )}
       </section>
 
-      {/* ISO Mount Section */}
+      {/* ISO Mount/Unmount Section */}
       {guestType === "qemu" && canOperate && (
         <section className="card">
-          <h2>Mount ISO Image</h2>
+          <h2>Mount/Unmount ISO Image</h2>
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
             <select
               value={selectedIso}
@@ -607,6 +616,9 @@ export function GuestDetailPage() {
             </select>
             <button type="button" onClick={handleMountIso} disabled={!selectedIso}>
               Mount ISO
+            </button>
+            <button type="button" onClick={handleUnmountIso} style={{ background: "#d32f2f", color: "#fff" }}>
+              Unmount ISO
             </button>
             <span style={{ color: isoMountStatus.includes("Failed") ? "#d32f2f" : "#666", fontSize: "0.95rem" }}>{isoMountStatus}</span>
           </div>

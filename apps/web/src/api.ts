@@ -1,3 +1,13 @@
+// Unmount ISO from an existing QEMU VM
+export async function unmountIsoFromQemuVm(input: {
+  node: string;
+  vmid: number;
+}): Promise<{ upid: string }> {
+  return postJsonWithBody<{ upid: string }>(
+    `/proxmox/guests/qemu/${encodeURIComponent(input.node)}/${input.vmid}/unmount-iso`,
+    {}
+  );
+}
 // Mount ISO to an existing QEMU VM
 export async function mountIsoToQemuVm(input: {
   node: string;
