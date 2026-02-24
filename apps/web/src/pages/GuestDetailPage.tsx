@@ -80,7 +80,7 @@ import {
   GuestSnapshot
 } from "../api";
 
-export function GuestDetailPage() {
+
   const { type, node, vmid } = useParams<{ type: string; node: string; vmid: string }>();
   const [guestData, setGuestData] = useState<{
     type: GuestType;
@@ -107,6 +107,38 @@ export function GuestDetailPage() {
   const guestType = type as GuestType;
   const guestNode = node || "";
   const guestVmid = Number(vmid);
+
+  // ISO mount state (must be inside the component)
+  const [isoList, setIsoList] = useState<ProvisioningIso[]>([]);
+  const [selectedIso, setSelectedIso] = useState<string>("");
+  const [isoMountStatus, setIsoMountStatus] = useState<string>("");
+
+  // Fetch ISOs for QEMU guests
+  useEffect(() => {
+    if (guestType !== "qemu" || !guestNode) return;
+    fetchProvisioningIsos(guestNode)
+      .then((res) => setIsoList(res.isos))
+      .catch(() => setIsoList([]));
+  }, [guestType, guestNode]);
+
+  const handleMountIso = async () => {
+    if (!selectedIso) {
+      setIsoMountStatus("Please select an ISO image.");
+      return;
+    }
+    const [isoStorage, isoFile] = selectedIso.split(":iso/");
+    if (!isoStorage || !isoFile) {
+      setIsoMountStatus("Invalid ISO selection.");
+      return;
+    }
+    setIsoMountStatus("Mounting ISO...");
+    try {
+      const { upid } = await mountIsoToQemuVm({ node: guestNode, vmid: guestVmid, isoStorage, isoFile });
+      setIsoMountStatus(`Mount requested (task: ${upid})`);
+    } catch (err) {
+      setIsoMountStatus(`Failed to mount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
+  };
 
   useEffect(() => {
     fetchAuthConfig()
