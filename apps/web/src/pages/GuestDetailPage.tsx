@@ -28,8 +28,8 @@ export function GuestDetailPage() {
     const handleUnmountIso = async () => {
       setIsoMountStatus("Unmounting ISO...");
       try {
-        const { upid } = await unmountIsoFromQemuVm({ node: guestNode, vmid: guestVmid });
-        setIsoMountStatus(`Unmount requested (task: ${upid})`);
+          await unmountIsoFromQemuVm({ node: guestNode, vmid: guestVmid });
+          setIsoMountStatus("Unmount requested. You can monitor progress in the Proxmox task log.");
       } catch (err) {
         setIsoMountStatus(`Failed to unmount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
       }
@@ -86,8 +86,8 @@ export function GuestDetailPage() {
     }
     setIsoMountStatus("Mounting ISO...");
     try {
-      const { upid } = await mountIsoToQemuVm({ node: guestNode, vmid: guestVmid, isoStorage, isoFile });
-      setIsoMountStatus(`Mount requested (task: ${upid})`);
+        await mountIsoToQemuVm({ node: guestNode, vmid: guestVmid, isoStorage, isoFile });
+        setIsoMountStatus("Mount requested. You can monitor progress in the Proxmox task log.");
     } catch (err) {
       setIsoMountStatus(`Failed to mount ISO: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
