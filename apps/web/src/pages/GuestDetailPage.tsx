@@ -588,6 +588,31 @@ export function GuestDetailPage() {
         )}
       </section>
 
+      {/* ISO Mount Section */}
+      {guestType === "qemu" && canOperate && (
+        <section className="card">
+          <h2>Mount ISO Image</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+            <select
+              value={selectedIso}
+              onChange={e => setSelectedIso(e.target.value)}
+              style={{ minWidth: 220 }}
+            >
+              <option value="">-- Select ISO --</option>
+              {isoList.map((iso) => (
+                <option key={iso.storage + ":iso/" + iso.file} value={iso.storage + ":iso/" + iso.file}>
+                  {iso.file} ({iso.storage})
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={handleMountIso} disabled={!selectedIso}>
+              Mount ISO
+            </button>
+            <span style={{ color: isoMountStatus.includes("Failed") ? "#d32f2f" : "#666", fontSize: "0.95rem" }}>{isoMountStatus}</span>
+          </div>
+        </section>
+      )}
+
       <section className="card">
         <h2>Snapshot Management</h2>
         
