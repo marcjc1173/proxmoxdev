@@ -1,6 +1,22 @@
 
 
-// ...existing code...
+
+// Import necessary modules
+import { promises as fs } from "node:fs";
+import { Router } from "express";
+import multer from "multer";
+import { issueToken, requireAuth, requireRole } from "./auth.js";
+import { acknowledgeAlarm, evaluateAlarms, listAlarms, silenceAlarm } from "./alarms.js";
+import { listNotificationAudit } from "./alarmNotifier.js";
+import { listActivityAudit, recordActivityAudit } from "./activityAudit.js";
+import { config } from "./config.js";
+import { evaluatePolicyGuardrails, getPolicyGuardrails, updatePolicyGuardrails } from "./policyGuardrails.js";
+import { proxmoxClient } from "./proxmoxClient.js";
+import { createUser, deleteUser, findUser, listUsers, updateUser } from "./userStore.js";
+import { getMetrics } from "./metricsStore.js";
+
+
+export const apiRouter = Router();
 
 // Mount ISO to QEMU VM CD-ROM
 apiRouter.post("/proxmox/guests/qemu/:node/:vmid/mount-iso", requireAuth, requireRole("operator"), async (req, res, next) => {
@@ -19,20 +35,6 @@ apiRouter.post("/proxmox/guests/qemu/:node/:vmid/mount-iso", requireAuth, requir
   }
 });
 
-import { promises as fs } from "node:fs";
-import { Router } from "express";
-import multer from "multer";
-import { issueToken, requireAuth, requireRole } from "./auth.js";
-import { acknowledgeAlarm, evaluateAlarms, listAlarms, silenceAlarm } from "./alarms.js";
-import { listNotificationAudit } from "./alarmNotifier.js";
-import { listActivityAudit, recordActivityAudit } from "./activityAudit.js";
-import { config } from "./config.js";
-import { evaluatePolicyGuardrails, getPolicyGuardrails, updatePolicyGuardrails } from "./policyGuardrails.js";
-import { proxmoxClient } from "./proxmoxClient.js";
-import { createUser, deleteUser, findUser, listUsers, updateUser } from "./userStore.js";
-import { getMetrics } from "./metricsStore.js";
-
-export const apiRouter = Router();
 
 const validGuestTypes = new Set(["qemu", "lxc"]);
 const validActions = new Set(["start", "stop", "reboot", "shutdown"]);
