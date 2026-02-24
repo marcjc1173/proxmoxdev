@@ -590,7 +590,9 @@ export function ProvisioningPage() {
                 )}
               </select>
             </label>
-            <label>
+
+            {/* Separate line for New VMID */}
+            <label style={{ display: "block", marginTop: 8 }}>
               New VMID
               <input value={isoNewId} onChange={(event) => setIsoNewId(event.target.value)} placeholder="400" />
             </label>
