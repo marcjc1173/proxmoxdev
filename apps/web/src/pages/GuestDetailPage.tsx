@@ -27,6 +27,7 @@ export function GuestDetailPage() {
     vmid: number;
     config: Record<string, unknown>;
     status: Record<string, unknown>;
+    assignedIp?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -388,6 +389,9 @@ export function GuestDetailPage() {
       ? `${Math.round((Number(status.disk) / Number(status.maxdisk)) * 100)}%`
       : "-";
   const uptime = status.uptime != null ? `${Math.floor(Number(status.uptime) / 60)} minutes` : "-";
+  const assignedIp = typeof guestData.assignedIp === "string" && guestData.assignedIp.trim()
+    ? guestData.assignedIp.trim()
+    : "-";
 
   const configEntries = Object.entries(config)
     .filter(([key]) => !["name", "hostname", "memory", "cores", "cpus"].includes(key))
@@ -455,6 +459,10 @@ export function GuestDetailPage() {
             <div className="config-item">
               <span className="config-key">Memory:</span>
               <span className="config-value">{memory || 'N/A'}</span>
+            </div>
+            <div className="config-item">
+              <span className="config-key">Assigned IP:</span>
+              <span className="config-value">{assignedIp}</span>
             </div>
           </div>
         </section>

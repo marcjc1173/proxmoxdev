@@ -61,6 +61,67 @@ interface NodeStorageInfo {
   active?: number;
 }
 
+function normalizeIpAddress(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim().split("/")[0] ?? "";
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (
+    normalized === "127.0.0.1" ||
+    normalized.startsWith("127.") ||
+    normalized === "::1" ||
+    normalized.toLowerCase().startsWith("fe80:") ||
+    normalized.startsWith("169.254.")
+  ) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function collectIpCandidates(value: unknown, bucket: string[]): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectIpCandidates(item, bucket);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const [rawKey, item] of Object.entries(record)) {
+    const key = rawKey.toLowerCase();
+    if (key === "ip-address" || key === "address" || key === "local" || key === "inet" || key === "ip") {
+      const normalized = normalizeIpAddress(item);
+      if (normalized) {
+        bucket.push(normalized);
+      }
+    }
+
+    collectIpCandidates(item, bucket);
+  }
+}
+
+function pickPrimaryAssignedIp(value: unknown): string | undefined {
+  const candidates: string[] = [];
+  collectIpCandidates(value, candidates);
+
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  const ipv4 = candidates.find((ip) => ip.includes("."));
+  return ipv4 ?? candidates[0];
+}
+
 class ProxmoxClient {
   private readonly http: AxiosInstance;
   private csrfToken?: string;
@@ -351,6 +412,28 @@ class ProxmoxClient {
       method: "GET",
       url: `/nodes/${input.node}/${input.type}/${input.vmid}/status/current`
     });
+  }
+
+  async getGuestAssignedIp(input: { type: GuestType; node: string; vmid: number }): Promise<string | undefined> {
+    try {
+      if (input.type === "qemu") {
+        const qemuInterfaces = await this.request<Record<string, unknown>>({
+          method: "GET",
+          url: `/nodes/${input.node}/qemu/${input.vmid}/agent/network-get-interfaces`
+        });
+
+        return pickPrimaryAssignedIp(qemuInterfaces);
+      }
+
+      const lxcInterfaces = await this.request<unknown>({
+        method: "GET",
+        url: `/nodes/${input.node}/lxc/${input.vmid}/interfaces`
+      });
+
+      return pickPrimaryAssignedIp(lxcInterfaces);
+    } catch {
+      return undefined;
+    }
   }
 
   async executeGuestAction(input: {

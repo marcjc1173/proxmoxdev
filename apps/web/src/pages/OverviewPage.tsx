@@ -61,7 +61,8 @@ export function OverviewPage() {
       node: String(vm.node ?? "-"),
       vmid: Number(vm.vmid ?? 0),
       name: String(vm.name ?? "-"),
-      status: String(vm.status ?? "-")
+      status: String(vm.status ?? "-"),
+      assignedIp: typeof vm.assignedIp === "string" && vm.assignedIp.trim() ? vm.assignedIp.trim() : "-"
     })),
     ...overview.lxcVms.map((ct: any) => ({
       key: `lxc:${ct.node}:${ct.vmid}`,
@@ -69,7 +70,8 @@ export function OverviewPage() {
       node: String(ct.node ?? "-"),
       vmid: Number(ct.vmid ?? 0),
       name: String(ct.name ?? "-"),
-      status: String(ct.status ?? "-")
+      status: String(ct.status ?? "-"),
+      assignedIp: typeof ct.assignedIp === "string" && ct.assignedIp.trim() ? ct.assignedIp.trim() : "-"
     }))
   ].sort((a, b) => a.vmid - b.vmid);
 
@@ -124,13 +126,14 @@ export function OverviewPage() {
                 <th>VMID</th>
                 <th>Name</th>
                 <th>Status</th>
+                <th>Assigned IP</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {guests.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>No guests</td>
+                  <td colSpan={7}>No guests</td>
                 </tr>
               ) : (
                 guests.map((guest) => (
@@ -142,6 +145,7 @@ export function OverviewPage() {
                     <td>
                       <span className={`status-badge status-${guest.status}`}>{guest.status}</span>
                     </td>
+                    <td>{guest.assignedIp}</td>
                     <td>
                       <Link
                         to={`/guest/${guest.type}/${guest.node}/${guest.vmid}`}

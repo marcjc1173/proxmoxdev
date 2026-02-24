@@ -5,6 +5,7 @@ dotenv.config();
 
 const schema = z.object({
   PORT: z.string().optional().default("4000"),
+  API_HOST: z.string().optional().default("0.0.0.0"),
   CORS_ORIGIN: z.string().optional().default("http://localhost:5173"),
   APP_AUTH_ENABLED: z
     .string()
@@ -94,6 +95,7 @@ if (env.PROXMOX_AUTH_MODE === "password") {
 
 export const config = {
   port: Number(env.PORT),
+  host: env.API_HOST,
   corsOrigin: env.CORS_ORIGIN,
   auth: {
     enabled: env.APP_AUTH_ENABLED,

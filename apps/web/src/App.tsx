@@ -64,7 +64,13 @@ export function App() {
       <div className="layout">
         <section className="card login-card">
           <h2>Sign In</h2>
-          <div className="snapshot-form">
+          <form
+            className="snapshot-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleLogin();
+            }}
+          >
             <label>
               Username
               <input
@@ -82,11 +88,11 @@ export function App() {
                 onKeyDown={(event) => event.key === "Enter" && handleLogin()}
               />
             </label>
-            <button type="button" onClick={handleLogin}>
+            <button type="submit">
               sign in
             </button>
             {loginError ? <div className="status error">{loginError}</div> : null}
-          </div>
+          </form>
         </section>
       </div>
     );

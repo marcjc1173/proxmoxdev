@@ -41,7 +41,7 @@ If you want the fastest copy/paste setup first, start here:
 
 ## Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 20+ and npm 8+
 - A reachable Proxmox VE API endpoint (example: `https://<proxmox-host>:8006`)
 - A Proxmox account/token with sufficient rights (see below)
 
@@ -137,6 +137,7 @@ From the repo root:
 
 ```bash
 npm install
+npm run install:apps
 npm run setup
 ```
 
@@ -170,6 +171,12 @@ Web API base URL is in `apps/web/.env`:
 ```dotenv
 VITE_API_BASE_URL=http://localhost:4000/api
 ```
+
+If `VITE_API_BASE_URL` is not set, the web app now defaults to:
+
+- `${window.location.protocol}//${window.location.hostname}:4000/api`
+
+This means opening the UI via `http://<server-ip>:5173` will automatically call `http://<server-ip>:4000/api`.
 
 ---
 
@@ -210,8 +217,14 @@ npm run dev
 ```
 
 - Web UI: `http://localhost:5173`
+- If 5173 is already in use, Vite will auto-pick another port (for example `http://localhost:5174`).
 - API base: `http://localhost:4000/api`
 - Health check: `http://localhost:4000/api/health`
+- Dev servers bind to all interfaces by default (`0.0.0.0`) so you can access from other machines on your LAN.
+- Optional overrides in env files:
+	- `apps/server/.env`: `API_HOST=0.0.0.0`
+	- `apps/web/.env`: `VITE_HOST=0.0.0.0`
+	- Set either host to `127.0.0.1` to restrict to local-only.
 
 ## 5) Verify connectivity quickly
 
@@ -227,6 +240,11 @@ If app auth is enabled, log in first in the UI, or call `POST /api/auth/login` a
 ## Common startup issues (and fixes)
 
 - **`npm run dev` exits immediately**
+	- Check tool versions first: `node -v` and `npm -v` (require Node 20+ and npm 8+).
+	- On brand-new servers, ensure workspace app dependencies are installed: `npm run install:apps`.
+	- Run each app directly to reveal the real error output:
+		- `npm run dev:server`
+		- `npm run dev:web`
 	- Run `npm run build` to surface TypeScript/config errors.
 	- Check `apps/server/.env` for missing required values.
 	- `PROXMOX_BASE_URL` must be a valid URL.

@@ -462,6 +462,32 @@ apiRouter.get("/proxmox/cluster/status", requireAuth, requireRole("viewer"), asy
 apiRouter.get("/proxmox/overview", requireAuth, requireRole("viewer"), async (_req, res, next) => {
   try {
     const data = await proxmoxClient.getOverview();
+
+    const enrichWithAssignedIp = async (guest: Record<string, unknown>, type: "qemu" | "lxc") => {
+      const node = String(guest.node ?? "").trim();
+      const vmid = Number(guest.vmid);
+      const status = String(guest.status ?? "").toLowerCase();
+
+      if (!node || !Number.isInteger(vmid) || vmid <= 0 || status !== "running") {
+        return guest;
+      }
+
+      const assignedIp = await proxmoxClient.getGuestAssignedIp({ type, node, vmid });
+      return {
+        ...guest,
+        assignedIp
+      };
+    };
+
+    const [qemuVms, lxcVms] = await Promise.all([
+      Promise.all(
+        data.qemuVms.map((guest) => enrichWithAssignedIp(guest as Record<string, unknown>, "qemu"))
+      ),
+      Promise.all(
+        data.lxcVms.map((guest) => enrichWithAssignedIp(guest as Record<string, unknown>, "lxc"))
+      )
+    ]);
+
     res.json(data);
   } catch (error) {
     next(error);
@@ -745,15 +771,19 @@ apiRouter.get("/proxmox/guests/:type/:node/:vmid", requireAuth, requireRole("vie
       return res.status(400).json({ error: parsed.error });
     }
 
-    const config = await proxmoxClient.getGuestConfig(parsed.value);
-    const status = await proxmoxClient.getGuestStatus(parsed.value);
+    const [config, status, assignedIp] = await Promise.all([
+      proxmoxClient.getGuestConfig(parsed.value),
+      proxmoxClient.getGuestStatus(parsed.value),
+      proxmoxClient.getGuestAssignedIp(parsed.value)
+    ]);
 
     return res.json({
       type: parsed.value.type,
       node: parsed.value.node,
       vmid: parsed.value.vmid,
       config,
-      status
+      status,
+      assignedIp
     });
   } catch (error) {
     return next(error);

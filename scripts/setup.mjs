@@ -40,12 +40,14 @@ function ensureServerEnvDefaults() {
   }
 
   content = setEnvVar(content, "APP_USERS", "");
-  content = setEnvVar(content, "APP_USERS_FILE", "apps/server/data/users.json");
+  content = setEnvVar(content, "APP_USERS_FILE", "");
 
   if (enableAuth) {
     content = setEnvVar(content, "APP_AUTH_ENABLED", "true");
 
-    if (/^APP_BOOTSTRAP_ADMIN_PASSWORD=\s*$/m.test(content)) {
+    const bootstrapPasswordMatch = content.match(/^APP_BOOTSTRAP_ADMIN_PASSWORD=(.*)$/m);
+    const bootstrapPassword = (bootstrapPasswordMatch?.[1] ?? "").trim();
+    if (!bootstrapPassword) {
       content = setEnvVar(content, "APP_BOOTSTRAP_ADMIN_PASSWORD", randomBytes(12).toString("base64url"));
     }
   }

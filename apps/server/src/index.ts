@@ -39,6 +39,6 @@ setInterval(() => {
 const metricsCollector = new MetricsCollector(proxmoxClient, 5);
 metricsCollector.start();
 
-app.listen(config.port, () => {
-  console.log(`Proxmox Center API listening on http://localhost:${config.port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`Proxmox Center API listening on http://${config.host}:${config.port}`);
 });

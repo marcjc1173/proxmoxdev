@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const defaultApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:4000/api`;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl;
 const TOKEN_KEY = "pc_token";
 const ROLE_KEY = "pc_role";
 const USERNAME_KEY = "pc_username";
@@ -431,8 +432,8 @@ export function fetchGuestDetails(input: {
   type: GuestType;
   node: string;
   vmid: number;
-}): Promise<{ type: GuestType; node: string; vmid: number; config: Record<string, unknown>; status: Record<string, unknown> }> {
-  return fetchJson<{ type: GuestType; node: string; vmid: number; config: Record<string, unknown>; status: Record<string, unknown> }>(
+}): Promise<{ type: GuestType; node: string; vmid: number; config: Record<string, unknown>; status: Record<string, unknown>; assignedIp?: string }> {
+  return fetchJson<{ type: GuestType; node: string; vmid: number; config: Record<string, unknown>; status: Record<string, unknown>; assignedIp?: string }>(
     `/proxmox/guests/${input.type}/${encodeURIComponent(input.node)}/${input.vmid}`
   );
 }
