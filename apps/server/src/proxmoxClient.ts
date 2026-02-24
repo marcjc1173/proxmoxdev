@@ -679,6 +679,28 @@ class ProxmoxClient {
       }));
   }
 
+  /**
+   * Mount an ISO image to a QEMU VM's CD-ROM drive (ide2).
+   * @param input.node Node name
+   * @param input.vmid VM ID
+   * @param input.isoStorage Storage name where ISO is located
+   * @param input.isoFile ISO file name (e.g. ubuntu.iso)
+   */
+  async mountIsoToQemuVm(input: { node: string; vmid: number; isoStorage: string; isoFile: string }) {
+    // ide2 is the typical CD-ROM device for QEMU VMs
+    const params = {
+      ide2: `${input.isoStorage}:iso/${input.isoFile},media=cdrom`
+    };
+    return this.request<string>(
+      {
+        method: "POST",
+        url: `/nodes/${input.node}/qemu/${input.vmid}/config`,
+        params
+      },
+      true
+    );
+  }
+
   private extractNodeFromUpid(upid: string): string | undefined {
     const parts = upid.split(":");
     if (parts.length < 2 || parts[0] !== "UPID") {
